@@ -1,9 +1,13 @@
+#include <cstddef>
+#include <tuple>
+#include <utility>
+
 template <class T> struct BiTree
 {
 	T val;
 	BiTree<T>* lt, * rt, * parent;
 };
-enum Dir {fall_left, parent};
+enum class Dir { fall_left, parent }; // эти типо как мы идем по дереву (тип перехода)
 template <class T>
 std::pair <size_t, BiTree<T>*> fall_left(BiTree<T>* root)
 {
@@ -18,16 +22,16 @@ std::pair <size_t, BiTree<T>*> fall_left(BiTree<T>* root)
 template <class T>
 std::pair <size_t, BiTree<T>*> parent(BiTree<T>* root)
 {
+	size_t path = 0;
 	if (!root)
 	{
 		return { path,nullptr };
 	}
-	size_t path = 0;
-	BiTree<T> parent = root->parent;
-	while (parent && parent->lt != root)
+	BiTree<T>* parent = root->parent;
+	while (parent && parent->lt != root) // пока не найдем родителя и у него текущий узел находится слева
 	{
-		root = parent;
-		parent = root->parent;
+		root = parent; // текущий узел делаем родителем
+		parent = root->parent; // поднимаемся выше по родителю
 		path++;
 	}
 	return { path, parent };
@@ -35,10 +39,14 @@ std::pair <size_t, BiTree<T>*> parent(BiTree<T>* root)
 template<class T>
 std::tuple<Dir, size_t , BiTree<T>*>nextStruct(BiTree<T>* root)
 {
+	if (!root)
+	{
+		return { Dir::parent, 0, nullptr };
+	}
 	if (root->rt)
 	{
 		auto result = fall_left(root->rt);
-		return { Dir::fall_left, result.first, result.second };
+		return { Dir::fall_left, result.first, result.second }; // возвращаем тип перехода, длину и найденный узел
 	}
 	auto result = parent(root);
 	return { Dir::parent, result.first, result.second };
@@ -52,26 +60,18 @@ bool isEqualStruct(BiTree<T>* lhs, BiTree<T>* rhs)
 	{
 		return false;
 	}
-	auto ln = nextStruct(lhs_begin.second);
-	auto rn = nextStruct(rhs_begin.second);
-	while (std::get<0>(ln) == std::get<0>rn && std::get<1> rn == std::get<1> (ln) && std::get<2>(ln)&& std::get<2>(rn))
-	{
-		ln = nextStruct(std::get<2>(ln));
-		rn = nextStruct(std::get<2>(rn));
-
-	}
-	return ln == rn;
+	auto result = isEqualStructStart(lhs_begin.second, rhs_begin.second);
+	return !std::get<0>(result)&& !std::get<1>(result);
 }
-
 template <class T>
 bool includedStructStart(BiTree<T>* lhs_root, BiTree<T>* pattern)
 {
-	auto next_patern = nextStruct(pattern);
+	auto next_pattern = nextStruct(pattern);
 	std::pair<size_t, BiTree<T>*> next_lhs;
 	if (std::get<0>(next_pattern) == Dir::fall_left)
 	{
 		next_lhs = fall_left(lhs_root);
-		if (std::get<1>(next_pattern) == Dir::fall_left)
+		if (std::get<0>(next_pattern) == Dir::fall_left)
 		{
 			next_lhs = fall_left(lhs_root);
 		}
@@ -81,7 +81,7 @@ bool includedStructStart(BiTree<T>* lhs_root, BiTree<T>* pattern)
 		while (std::get<1>(next_pattern) == std::get<1>(next_lhs))
 		{
 			next_pattern = nextStruct(std::get<2>(next_pattern));
-			if (std::get<1>(next_pattern) == Dir::fall_left)
+			if (std::get<0>(next_pattern) == Dir::fall_left)
 			{
 				if (next_lhs.second->rt)
 				{
@@ -105,7 +105,7 @@ bool includedStruct(BiTree<T>* lhs, BiTree<T>* pattern)
 	lhs = fall_left(lhs).second;
 	while (lhs)
 	{
-		if (includedstructStart(lhs, pattern)
+		if (includedStructStart(lhs, pattern))
 		{
 			return true;
 		}
